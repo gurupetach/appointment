@@ -96,6 +96,10 @@ defmodule HelloWeb.BookingLive do
     |> String.slice(0, 19)
   end
 
+  defp format_field_value(nil), do: ""
+  defp format_field_value(value) when is_binary(value), do: value
+  defp format_field_value(_), do: ""
+
   defp format_date(datetime) do
     date = NaiveDateTime.to_date(datetime)
     Calendar.strftime(date, "%A, %B %d, %Y")
