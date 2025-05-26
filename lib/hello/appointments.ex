@@ -96,15 +96,16 @@ defmodule Hello.Appointments do
 
   # Weekly Availability Functions
   def get_weekly_availability(admin_id \\ nil) do
-    query = if admin_id do
-      from w in WeeklyAvailability,
-      where: w.admin_id == ^admin_id,
-      order_by: [asc: w.day_of_week]
-    else
-      from w in WeeklyAvailability,
-      where: is_nil(w.admin_id),
-      order_by: [asc: w.day_of_week]
-    end
+    query =
+      if admin_id do
+        from w in WeeklyAvailability,
+          where: w.admin_id == ^admin_id,
+          order_by: [asc: w.day_of_week]
+      else
+        from w in WeeklyAvailability,
+          where: is_nil(w.admin_id),
+          order_by: [asc: w.day_of_week]
+      end
 
     availability_records = Repo.all(query)
 
@@ -114,13 +115,16 @@ defmodule Hello.Appointments do
       case Enum.find(availability_records, &(&1.day_of_week == day)) do
         nil ->
           {day, %{enabled: false, hours: []}}
+
         record ->
           # Handle both list and map formats for time_slots
-          time_slots = case record.time_slots do
-            slots when is_list(slots) -> slots
-            %{} -> []
-            _ -> []
-          end
+          time_slots =
+            case record.time_slots do
+              slots when is_list(slots) -> slots
+              %{} -> []
+              _ -> []
+            end
+
           {day, %{enabled: record.is_enabled, hours: time_slots}}
       end
     end)

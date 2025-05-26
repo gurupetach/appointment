@@ -209,8 +209,14 @@ defmodule HelloWeb.AvailabilityLive do
     0..23
     |> Enum.flat_map(fn hour ->
       [
-        %{value: "#{String.pad_leading("#{hour}", 2, "0")}00", label: "#{String.pad_leading("#{hour}", 2, "0")}00"},
-        %{value: "#{String.pad_leading("#{hour}", 2, "0")}30", label: "#{String.pad_leading("#{hour}", 2, "0")}30"}
+        %{
+          value: "#{String.pad_leading("#{hour}", 2, "0")}00",
+          label: "#{String.pad_leading("#{hour}", 2, "0")}00"
+        },
+        %{
+          value: "#{String.pad_leading("#{hour}", 2, "0")}30",
+          label: "#{String.pad_leading("#{hour}", 2, "0")}30"
+        }
       ]
     end)
   end
@@ -287,8 +293,31 @@ defmodule HelloWeb.AvailabilityLive do
   end
 
   defp time_minutes(time_string) do
-    [hour_str, minute_str] = String.split(time_string, ":")
-    String.to_integer(hour_str) * 60 + String.to_integer(minute_str)
+    case String.length(time_string) do
+      4 ->
+        # Handle 4-digit format like "0900", "1730"
+        {hour, minute} = time_string |> String.split_at(2)
+        String.to_integer(hour) * 60 + String.to_integer(minute)
+
+      _ ->
+        # Handle colon format like "09:00", "17:30"
+        case String.split(time_string, ":") do
+          [hour_str, minute_str] ->
+            String.to_integer(hour_str) * 60 + String.to_integer(minute_str)
+
+          [hour_str] ->
+            # Check if it's a 4-digit string without colon
+            if String.length(hour_str) == 4 do
+              {hour, minute} = String.split_at(hour_str, 2)
+              String.to_integer(hour) * 60 + String.to_integer(minute)
+            else
+              0
+            end
+
+          _ ->
+            0
+        end
+    end
   end
 
   defp format_12_hour(hour, minute) do
@@ -306,18 +335,24 @@ defmodule HelloWeb.AvailabilityLive do
   end
 
   defp format_time_display(time_string) when is_binary(time_string) do
-    case String.split(time_string, ":") do
-      [hour_str, minute_str] ->
-        hour = String.to_integer(hour_str)
-        minute = String.to_integer(minute_str)
-        format_12_hour(hour, minute)
+    case String.length(time_string) do
+      # Already in 4-digit format like "0900"
+      4 ->
+        time_string
 
       _ ->
-        time_string
+        # Convert from colon format to 4-digit
+        case String.split(time_string, ":") do
+          [hour_str, minute_str] ->
+            "#{String.pad_leading(hour_str, 2, "0")}#{String.pad_leading(minute_str, 2, "0")}"
+
+          _ ->
+            time_string
+        end
     end
   end
 
-  defp format_time_display(_), do: "--:--"
+  defp format_time_display(_), do: "----"
 
   defp day_enabled?(availability, day_key) do
     Map.get(availability, day_key, %{enabled: false}).enabled
