@@ -33,6 +33,7 @@ defmodule HelloWeb.AvailabilityLive do
       |> assign(:availability, default_availability)
       |> assign(:timezone, "East Africa Time")
       |> assign(:saving, false)
+      |> assign(:pending_changes, %{})
 
     {:ok, socket}
   end
@@ -331,5 +332,9 @@ defmodule HelloWeb.AvailabilityLive do
       nil -> ""
       hour -> Map.get(hour, field, "")
     end
+  end
+
+  defp has_pending_changes?(pending_changes, day, index) do
+    Map.has_key?(pending_changes, "#{day}-#{index}")
   end
 end

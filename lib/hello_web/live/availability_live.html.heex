@@ -1,12 +1,12 @@
 # lib/hello_web/live/availability_live.html.heex
 <div class="min-h-screen bg-gray-50">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <!-- Header with Auto-save Status -->
+    <!-- Header -->
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Weekly Availability</h1>
         <div class="flex items-center space-x-4">
-          <p class="text-gray-600">Set when you're available for meetings</p>
+          <p class="text-gray-600">Set when you're available for meetings (24-hour format)</p>
           
 <!-- Auto-save Status -->
           <div class="flex items-center text-sm">
@@ -45,7 +45,7 @@
                     clip-rule="evenodd"
                   />
                 </svg>
-                Auto-saved
+                Ready
               </div>
             <% end %>
           </div>
@@ -128,12 +128,12 @@
                 
 <!-- Time Slots -->
                 <%= if day_enabled?(@availability, day.key) do %>
-                  <div class="ml-14 space-y-3">
-                    <%= for {hours, index} <- Enum.with_index(get_day_hours(@availability, day.key)) do %>
+                  <div class="ml-14 space-y-4">
+                    <%= for {_hours, index} <- Enum.with_index(get_day_hours(@availability, day.key)) do %>
                       <div class="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
                         <!-- Start Time -->
                         <div class="flex-1">
-                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                          <label class="block text-xs font-medium text-gray-700 mb-2">
                             Start time
                           </label>
                           <select
@@ -141,7 +141,7 @@
                             phx-value-day={day.key}
                             phx-value-index={index}
                             phx-value-field="start"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            class="block w-full px-3 py-2 bg-white text-black border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                           >
                             <%= for option <- get_available_times_for_field(Map.get(@availability, day.key), index, "start") do %>
                               <option
@@ -153,8 +153,18 @@
                                     "start"
                                   ) == option.value
                                 }
+                                class={
+                                  unless(Map.get(option, :available, true),
+                                    do: "text-gray-400",
+                                    else: "text-black"
+                                  )
+                                }
+                                disabled={not Map.get(option, :available, true)}
                               >
-                                {option.label}
+                                {option.label}{unless(Map.get(option, :available, true),
+                                  do: " (unavailable)",
+                                  else: ""
+                                )}
                               </option>
                             <% end %>
                           </select>
@@ -166,7 +176,7 @@
                         
 <!-- End Time -->
                         <div class="flex-1">
-                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                          <label class="block text-xs font-medium text-gray-700 mb-2">
                             End time
                           </label>
                           <select
@@ -174,7 +184,7 @@
                             phx-value-day={day.key}
                             phx-value-index={index}
                             phx-value-field="end"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            class="block w-full px-3 py-2 bg-white text-black border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                           >
                             <%= for option <- get_available_times_for_field(Map.get(@availability, day.key), index, "end", get_current_hour_value(get_day_hours(@availability, day.key), index, "start")) do %>
                               <option
@@ -186,15 +196,44 @@
                                     "end"
                                   ) == option.value
                                 }
+                                class={
+                                  unless(Map.get(option, :available, true),
+                                    do: "text-gray-400",
+                                    else: "text-black"
+                                  )
+                                }
+                                disabled={not Map.get(option, :available, true)}
                               >
-                                {option.label}
+                                {option.label}{unless(Map.get(option, :available, true),
+                                  do: " (unavailable)",
+                                  else: ""
+                                )}
                               </option>
                             <% end %>
                           </select>
                         </div>
                         
-<!-- Actions -->
-                        <div class="flex items-center space-x-2">
+<!-- Save Button -->
+                        <div class="flex flex-col space-y-2">
+                          <button
+                            phx-click="save_slot"
+                            phx-value-day={day.key}
+                            phx-value-index={index}
+                            class={[
+                              "px-3 py-2 text-xs font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500",
+                              if(has_pending_changes?(@pending_changes, day.key, index),
+                                do: "bg-orange-500 text-white hover:bg-orange-600 shadow-md",
+                                else:
+                                  "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200"
+                              )
+                            ]}
+                          >
+                            {if has_pending_changes?(@pending_changes, day.key, index),
+                              do: "Save",
+                              else: "Saved"}
+                          </button>
+                          
+<!-- Remove Button -->
                           <%= if length(get_day_hours(@availability, day.key)) > 1 do %>
                             <button
                               phx-click="remove_hours"
@@ -322,6 +361,12 @@
                   {@availability
                   |> Enum.map(fn {_day, data} -> length(data.hours) end)
                   |> Enum.sum()}
+                </span>
+              </p>
+              <p class="flex justify-between">
+                <span>Unsaved changes:</span>
+                <span class="font-medium text-orange-600">
+                  {map_size(@pending_changes)}
                 </span>
               </p>
             </div>
