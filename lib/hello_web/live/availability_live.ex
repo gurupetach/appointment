@@ -209,8 +209,8 @@ defmodule HelloWeb.AvailabilityLive do
     0..23
     |> Enum.flat_map(fn hour ->
       [
-        %{value: "#{String.pad_leading("#{hour}", 2, "0")}:00", label: format_12_hour(hour, 0)},
-        %{value: "#{String.pad_leading("#{hour}", 2, "0")}:30", label: format_12_hour(hour, 30)}
+        %{value: "#{String.pad_leading("#{hour}", 2, "0")}00", label: "#{String.pad_leading("#{hour}", 2, "0")}00"},
+        %{value: "#{String.pad_leading("#{hour}", 2, "0")}30", label: "#{String.pad_leading("#{hour}", 2, "0")}30"}
       ]
     end)
   end
