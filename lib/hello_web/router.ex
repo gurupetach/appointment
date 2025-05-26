@@ -18,6 +18,12 @@ defmodule HelloWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # Customer booking routes
+    live "/book", BookingLive, :index
+
+    # Admin routes
+    live "/admin", AdminLive, :index
   end
 
   # Other scopes may use custom stacks.

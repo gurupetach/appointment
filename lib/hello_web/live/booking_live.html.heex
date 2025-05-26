@@ -1,0 +1,235 @@
+# lib/hello_web/live/booking_live.html.heex
+<div class="max-w-4xl mx-auto p-6">
+  <h1 class="text-3xl font-bold text-gray-900 mb-8">Book an Appointment</h1>
+
+  <%= case @booking_step do %>
+    <% :select_time -> %>
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-6">Select an Available Time</h2>
+
+        <%= if @available_slots == [] do %>
+          <div class="text-center py-12">
+            <div class="text-gray-500 text-lg mb-4">
+              No appointments are currently available for booking.
+            </div>
+            <p class="text-gray-400">
+              Please check back later or contact us directly.
+            </p>
+          </div>
+        <% else %>
+          <div class="space-y-6">
+            <%= for {date, slots} <- group_slots_by_date(@available_slots) do %>
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-3">
+                  {format_date(List.first(slots).start_time)}
+                </h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <%= for slot <- slots do %>
+                    <button
+                      phx-click="select_slot"
+                      phx-value-slot_id={slot.id}
+                      class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left"
+                    >
+                      <div class="font-medium text-gray-900">
+                        {format_time(slot.start_time)} - {format_time(slot.end_time)}
+                      </div>
+                      <%= if slot.admin_notes do %>
+                        <div class="text-sm text-gray-500 mt-1">
+                          {slot.admin_notes}
+                        </div>
+                      <% end %>
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% :enter_details -> %>
+      <div class="bg-white shadow rounded-lg p-6">
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold">Appointment Details</h2>
+          <div class="mt-2 p-4 bg-blue-50 rounded-lg">
+            <p class="text-blue-800 font-medium">
+              Selected Time: {format_datetime(@selected_slot.start_time)} - {format_time(
+                @selected_slot.end_time
+              )}
+            </p>
+            <%= if @selected_slot.admin_notes do %>
+              <p class="text-blue-600 text-sm mt-1">
+                Note: {@selected_slot.admin_notes}
+              </p>
+            <% end %>
+          </div>
+        </div>
+
+        <form phx-submit="book_appointment" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="appointment_customer_name"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Full Name *
+              </label>
+              <input
+                type="text"
+                id="appointment_customer_name"
+                name="appointment[customer_name]"
+                value={@form[:customer_name].value}
+                required
+                placeholder="Enter your full name"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label
+                for="appointment_customer_email"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Email Address *
+              </label>
+              <input
+                type="email"
+                id="appointment_customer_email"
+                name="appointment[customer_email]"
+                value={@form[:customer_email].value}
+                required
+                placeholder="your@email.com"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="appointment_customer_phone"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Phone Number (Optional)
+            </label>
+            <input
+              type="tel"
+              id="appointment_customer_phone"
+              name="appointment[customer_phone]"
+              value={@form[:customer_phone].value}
+              placeholder="(555) 123-4567"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label for="appointment_notes" class="block text-sm font-medium text-gray-700">
+              Additional Notes (Optional)
+            </label>
+            <textarea
+              id="appointment_notes"
+              name="appointment[notes]"
+              placeholder="Any special requests or notes..."
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              rows="3"
+            ><%= @form[:notes].value %></textarea>
+          </div>
+
+          <div class="flex space-x-4 pt-4">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm"
+            >
+              Confirm Booking
+            </button>
+
+            <button
+              type="button"
+              phx-click="back_to_selection"
+              class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Back to Time Selection
+            </button>
+          </div>
+        </form>
+      </div>
+    <% :success -> %>
+      <div class="bg-white shadow rounded-lg p-6 text-center">
+        <div class="mb-6">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <svg
+              class="h-6 w-6 text-green-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+
+          <h2 class="text-2xl font-bold text-green-800 mb-2">
+            Booking Confirmed!
+          </h2>
+
+          <p class="text-gray-600 mb-6">
+            {@success_message}
+          </p>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold mb-4">Appointment Summary</h3>
+
+          <div class="space-y-2 text-left">
+            <div class="flex justify-between">
+              <span class="font-medium">Date & Time:</span>
+              <span>
+                {format_datetime(@booked_appointment.time_slot.start_time)} - {format_time(
+                  @booked_appointment.time_slot.end_time
+                )}
+              </span>
+            </div>
+
+            <div class="flex justify-between">
+              <span class="font-medium">Name:</span>
+              <span>{@booked_appointment.customer_name}</span>
+            </div>
+
+            <div class="flex justify-between">
+              <span class="font-medium">Email:</span>
+              <span>{@booked_appointment.customer_email}</span>
+            </div>
+
+            <%= if @booked_appointment.customer_phone do %>
+              <div class="flex justify-between">
+                <span class="font-medium">Phone:</span>
+                <span>{@booked_appointment.customer_phone}</span>
+              </div>
+            <% end %>
+
+            <%= if @booked_appointment.notes do %>
+              <div class="flex justify-between">
+                <span class="font-medium">Notes:</span>
+                <span>{@booked_appointment.notes}</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="text-sm text-gray-500 mb-6">
+          <p>A confirmation email will be sent to {@booked_appointment.customer_email}.</p>
+          <p>Please save this information for your records.</p>
+        </div>
+
+        <button
+          phx-click="book_another"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
+        >
+          Book Another Appointment
+        </button>
+      </div>
+  <% end %>
+</div>
