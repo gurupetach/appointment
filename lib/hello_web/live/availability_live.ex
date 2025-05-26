@@ -42,10 +42,8 @@ defmodule HelloWeb.AvailabilityLive do
     current_day = Map.get(availability, day)
 
     updated_day = %{
-      current_day
-      | enabled: !current_day.enabled,
-        hours:
-          if(!current_day.enabled, do: [%{start: "09:00", end: "17:00"}], else: current_day.hours)
+      current_day | enabled: !current_day.enabled,
+      hours: if(!current_day.enabled, do: [%{start: "09:00", end: "17:00"}], else: current_day.hours)
     }
 
     updated_availability = Map.put(availability, day, updated_day)
@@ -53,19 +51,14 @@ defmodule HelloWeb.AvailabilityLive do
     {:noreply, assign(socket, :availability, updated_availability)}
   end
 
-  def handle_event(
-        "update_hours",
-        %{"day" => day, "index" => index, "field" => field, "value" => value},
-        socket
-      ) do
+  def handle_event("update_hours", %{"day" => day, "index" => index, "field" => field, "value" => value}, socket) do
     availability = socket.assigns.availability
     day_data = Map.get(availability, day)
     index = String.to_integer(index)
 
-    updated_hours =
-      List.update_at(day_data.hours, index, fn hour ->
-        Map.put(hour, field, value)
-      end)
+    updated_hours = List.update_at(day_data.hours, index, fn hour ->
+      Map.put(hour, field, value)
+    end)
 
     updated_day = %{day_data | hours: updated_hours}
     updated_availability = Map.put(availability, day, updated_day)
@@ -110,7 +103,6 @@ defmodule HelloWeb.AvailabilityLive do
       {:ok, count} ->
         socket = put_flash(socket, :info, "Generated #{count} time slots successfully!")
         {:noreply, socket}
-
       {:error, message} ->
         socket = put_flash(socket, :error, message)
         {:noreply, socket}
@@ -121,8 +113,7 @@ defmodule HelloWeb.AvailabilityLive do
     # This would generate actual time slots based on the weekly availability
     # For now, just return a success count
     enabled_days = Enum.count(availability, fn {_day, data} -> data.enabled end)
-    # Simulate 8 slots per day
-    {:ok, enabled_days * 8}
+    {:ok, enabled_days * 8} # Simulate 8 slots per day
   end
 
   defp format_time_options do
@@ -135,18 +126,42 @@ defmodule HelloWeb.AvailabilityLive do
     end)
   end
 
+  defp get_valid_end_times(start_time) do
+    case start_time do
+      nil -> format_time_options()
+      "" -> format_time_options()
+      start_time ->
+        [start_hour, start_minute] = String.split(start_time, ":") |> Enum.map(&String.to_integer/1)
+        start_minutes = start_hour * 60 + start_minute
+
+        format_time_options()
+        |> Enum.filter(fn option ->
+          [end_hour, end_minute] = String.split(option.value, ":") |> Enum.map(&String.to_integer/1)
+          end_minutes = end_hour * 60 + end_minute
+          end_minutes > start_minutes + 30 # At least 30 minutes difference
+        end)
+    end
+  end
+
   defp format_12_hour(hour, minute) do
     period = if hour < 12, do: "AM", else: "PM"
-
-    display_hour =
-      case hour do
-        0 -> 12
-        h when h > 12 -> h - 12
-        h -> h
-      end
-
+    display_hour = case hour do
+      0 -> 12
+      h when h > 12 -> h - 12
+      h -> h
+    end
     minute_str = String.pad_leading("#{minute}", 2, "0")
     "#{display_hour}:#{minute_str} #{period}"
+  end
+
+  defp format_time_display(time_string) do
+    case String.split(time_string, ":") do
+      [hour_str, minute_str] ->
+        hour = String.to_integer(hour_str)
+        minute = String.to_integer(minute_str)
+        format_12_hour(hour, minute)
+      _ -> time_string
+    end
   end
 
   defp day_enabled?(availability, day_key) do
