@@ -24,6 +24,7 @@ defmodule HelloWeb.Router do
 
     # Admin routes
     live "/admin", AdminLive, :index
+    live "/admin/availability", AvailabilityLive, :index
   end
 
   # Other scopes may use custom stacks.
