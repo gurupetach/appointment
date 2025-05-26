@@ -43,9 +43,13 @@ defmodule HelloWeb.AvailabilityLive do
     current_day = Map.get(availability, day)
 
     updated_day = %{
-      current_day |
-      enabled: !current_day.enabled,
-      hours: if(!current_day.enabled, do: [%{"start" => "09:00", "end" => "17:00"}], else: current_day.hours)
+      current_day
+      | enabled: !current_day.enabled,
+        hours:
+          if(!current_day.enabled,
+            do: [%{"start" => "09:00", "end" => "17:00"}],
+            else: current_day.hours
+          )
     }
 
     updated_availability = Map.put(availability, day, updated_day)
@@ -67,11 +71,12 @@ defmodule HelloWeb.AvailabilityLive do
     day_data = Map.get(availability, day)
     index = String.to_integer(index)
 
-    updated_hours = List.update_at(day_data.hours, index, fn hour ->
-      updated = Map.put(hour, field, value)
-      IO.inspect(updated, label: "Updated Hour")
-      updated
-    end)
+    updated_hours =
+      List.update_at(day_data.hours, index, fn hour ->
+        updated = Map.put(hour, field, value)
+        IO.inspect(updated, label: "Updated Hour")
+        updated
+      end)
 
     updated_day = %{day_data | hours: updated_hours}
     updated_availability = Map.put(availability, day, updated_day)
@@ -91,7 +96,8 @@ defmodule HelloWeb.AvailabilityLive do
     # Find next available time slot
     existing_hours = day_data.hours
     next_start = find_next_available_start(existing_hours)
-    next_end = add_hours_to_time(next_start, 1) # Default 1 hour slot
+    # Default 1 hour slot
+    next_end = add_hours_to_time(next_start, 1)
 
     new_hour = %{"start" => next_start, "end" => next_end}
     updated_hours = day_data.hours ++ [new_hour]
@@ -128,6 +134,7 @@ defmodule HelloWeb.AvailabilityLive do
       {:ok, count} ->
         socket = put_flash(socket, :info, "Generated #{count} time slots successfully!")
         {:noreply, socket}
+
       {:error, message} ->
         socket = put_flash(socket, :error, message)
         {:noreply, socket}
@@ -161,15 +168,17 @@ defmodule HelloWeb.AvailabilityLive do
   defp find_next_available_start(existing_hours) when existing_hours == [], do: "09:00"
 
   defp find_next_available_start(existing_hours) do
-    latest_end = existing_hours
-    |> Enum.map(& &1["end"])
-    |> Enum.filter(& &1 != nil)
-    |> Enum.sort()
-    |> List.last()
+    latest_end =
+      existing_hours
+      |> Enum.map(& &1["end"])
+      |> Enum.filter(&(&1 != nil))
+      |> Enum.sort()
+      |> List.last()
 
     case latest_end do
       nil -> "09:00"
-      time -> add_hours_to_time(time, 0.5) # 30 minute gap
+      # 30 minute gap
+      time -> add_hours_to_time(time, 0.5)
     end
   end
 
@@ -211,10 +220,11 @@ defmodule HelloWeb.AvailabilityLive do
     case field do
       "start" ->
         # Get all used time ranges except current one
-        used_ranges = existing_hours
-        |> Enum.with_index()
-        |> Enum.reject(fn {_hour, idx} -> idx == current_index end)
-        |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
+        used_ranges =
+          existing_hours
+          |> Enum.with_index()
+          |> Enum.reject(fn {_hour, idx} -> idx == current_index end)
+          |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
 
         format_time_options()
         |> Enum.filter(fn option ->
@@ -224,15 +234,16 @@ defmodule HelloWeb.AvailabilityLive do
       "end" ->
         if current_start do
           # End time must be after start time and not conflict with other ranges
-          used_ranges = existing_hours
-          |> Enum.with_index()
-          |> Enum.reject(fn {_hour, idx} -> idx == current_index end)
-          |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
+          used_ranges =
+            existing_hours
+            |> Enum.with_index()
+            |> Enum.reject(fn {_hour, idx} -> idx == current_index end)
+            |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
 
           format_time_options()
           |> Enum.filter(fn option ->
             time_minutes(option.value) > time_minutes(current_start) + 30 and
-            not time_conflicts_with_ranges?(current_start, option.value, used_ranges)
+              not time_conflicts_with_ranges?(current_start, option.value, used_ranges)
           end)
         else
           format_time_options()
@@ -281,11 +292,14 @@ defmodule HelloWeb.AvailabilityLive do
 
   defp format_12_hour(hour, minute) do
     period = if hour < 12, do: "AM", else: "PM"
-    display_hour = case hour do
-      0 -> 12
-      h when h > 12 -> h - 12
-      h -> h
-    end
+
+    display_hour =
+      case hour do
+        0 -> 12
+        h when h > 12 -> h - 12
+        h -> h
+      end
+
     minute_str = String.pad_leading("#{minute}", 2, "0")
     "#{display_hour}:#{minute_str} #{period}"
   end
@@ -296,9 +310,12 @@ defmodule HelloWeb.AvailabilityLive do
         hour = String.to_integer(hour_str)
         minute = String.to_integer(minute_str)
         format_12_hour(hour, minute)
-      _ -> time_string
+
+      _ ->
+        time_string
     end
   end
+
   defp format_time_display(_), do: "--:--"
 
   defp day_enabled?(availability, day_key) do

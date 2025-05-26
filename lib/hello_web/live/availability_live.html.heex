@@ -8,20 +8,42 @@
         <div class="flex items-center space-x-4">
           <p class="text-gray-600">Set when you're available for meetings</p>
           
-          <!-- Auto-save Status -->
+<!-- Auto-save Status -->
           <div class="flex items-center text-sm">
             <%= if @saving do %>
               <div class="flex items-center text-blue-600">
-                <svg class="animate-spin -ml-1 mr-2 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  class="animate-spin -ml-1 mr-2 h-3 w-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  >
+                  </circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  >
+                  </path>
                 </svg>
                 Saving...
               </div>
             <% else %>
               <div class="flex items-center text-green-600">
                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
                 Auto-saved
               </div>
@@ -29,9 +51,9 @@
           </div>
         </div>
       </div>
-      
+
       <div class="mt-4 lg:mt-0">
-        <button 
+        <button
           phx-click="generate_slots"
           class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
@@ -39,8 +61,8 @@
         </button>
       </div>
     </div>
-
-    <!-- Main Layout -->
+    
+<!-- Main Layout -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- Configuration Panel -->
       <div class="xl:col-span-2">
@@ -58,46 +80,63 @@
                   <div class="flex items-center">
                     <div class={[
                       "flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm mr-4",
-                      if(day_enabled?(@availability, day.key), do: "bg-blue-500 text-white", else: "bg-gray-200 text-gray-600")
+                      if(day_enabled?(@availability, day.key),
+                        do: "bg-blue-500 text-white",
+                        else: "bg-gray-200 text-gray-600"
+                      )
                     ]}>
-                      <%= day.short %>
+                      {day.short}
                     </div>
                     <div>
-                      <h3 class="text-lg font-medium text-gray-900"><%= day.label %></h3>
+                      <h3 class="text-lg font-medium text-gray-900">{day.label}</h3>
                       <p class={[
                         "text-sm font-medium",
-                        if(day_enabled?(@availability, day.key), do: "text-green-600", else: "text-gray-500")
+                        if(day_enabled?(@availability, day.key),
+                          do: "text-green-600",
+                          else: "text-gray-500"
+                        )
                       ]}>
-                        <%= if day_enabled?(@availability, day.key), do: "Available", else: "Unavailable" %>
+                        {if day_enabled?(@availability, day.key),
+                          do: "Available",
+                          else: "Unavailable"}
                       </p>
                     </div>
                   </div>
                   
-                  <!-- Enhanced Toggle -->
-                  <button 
-                    phx-click="toggle_day" 
+<!-- Enhanced Toggle -->
+                  <button
+                    phx-click="toggle_day"
                     phx-value-day={day.key}
                     class={[
                       "relative inline-flex h-6 w-11 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm",
-                      if(day_enabled?(@availability, day.key), do: "bg-blue-600 shadow-blue-200", else: "bg-gray-300 shadow-gray-200")
+                      if(day_enabled?(@availability, day.key),
+                        do: "bg-blue-600 shadow-blue-200",
+                        else: "bg-gray-300 shadow-gray-200"
+                      )
                     ]}
                   >
                     <span class={[
                       "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-all duration-300 ease-in-out",
-                      if(day_enabled?(@availability, day.key), do: "translate-x-5", else: "translate-x-0")
-                    ]}></span>
+                      if(day_enabled?(@availability, day.key),
+                        do: "translate-x-5",
+                        else: "translate-x-0"
+                      )
+                    ]}>
+                    </span>
                   </button>
                 </div>
-
-                <!-- Time Slots -->
+                
+<!-- Time Slots -->
                 <%= if day_enabled?(@availability, day.key) do %>
                   <div class="ml-14 space-y-3">
                     <%= for {hours, index} <- Enum.with_index(get_day_hours(@availability, day.key)) do %>
                       <div class="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
                         <!-- Start Time -->
                         <div class="flex-1">
-                          <label class="block text-xs font-medium text-gray-700 mb-1">Start time</label>
-                          <select 
+                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                            Start time
+                          </label>
+                          <select
                             phx-change="update_time"
                             phx-value-day={day.key}
                             phx-value-index={index}
@@ -105,21 +144,32 @@
                             class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                           >
                             <%= for option <- get_available_times_for_field(Map.get(@availability, day.key), index, "start") do %>
-                              <option value={option.value} selected={get_current_hour_value(get_day_hours(@availability, day.key), index, "start") == option.value}>
-                                <%= option.label %>
+                              <option
+                                value={option.value}
+                                selected={
+                                  get_current_hour_value(
+                                    get_day_hours(@availability, day.key),
+                                    index,
+                                    "start"
+                                  ) == option.value
+                                }
+                              >
+                                {option.label}
                               </option>
                             <% end %>
                           </select>
                         </div>
-                        
+
                         <div class="flex items-center justify-center w-8 h-8 text-gray-400 font-bold text-lg">
                           →
                         </div>
                         
-                        <!-- End Time -->
+<!-- End Time -->
                         <div class="flex-1">
-                          <label class="block text-xs font-medium text-gray-700 mb-1">End time</label>
-                          <select 
+                          <label class="block text-xs font-medium text-gray-700 mb-1">
+                            End time
+                          </label>
+                          <select
                             phx-change="update_time"
                             phx-value-day={day.key}
                             phx-value-index={index}
@@ -127,25 +177,44 @@
                             class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                           >
                             <%= for option <- get_available_times_for_field(Map.get(@availability, day.key), index, "end", get_current_hour_value(get_day_hours(@availability, day.key), index, "start")) do %>
-                              <option value={option.value} selected={get_current_hour_value(get_day_hours(@availability, day.key), index, "end") == option.value}>
-                                <%= option.label %>
+                              <option
+                                value={option.value}
+                                selected={
+                                  get_current_hour_value(
+                                    get_day_hours(@availability, day.key),
+                                    index,
+                                    "end"
+                                  ) == option.value
+                                }
+                              >
+                                {option.label}
                               </option>
                             <% end %>
                           </select>
                         </div>
                         
-                        <!-- Actions -->
+<!-- Actions -->
                         <div class="flex items-center space-x-2">
                           <%= if length(get_day_hours(@availability, day.key)) > 1 do %>
-                            <button 
+                            <button
                               phx-click="remove_hours"
                               phx-value-day={day.key}
                               phx-value-index={index}
                               class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                               title="Remove time slot"
                             >
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                              <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </button>
                           <% end %>
@@ -153,14 +222,24 @@
                       </div>
                     <% end %>
                     
-                    <!-- Add Hours Button -->
-                    <button 
+<!-- Add Hours Button -->
+                    <button
                       phx-click="add_hours"
                       phx-value-day={day.key}
                       class="inline-flex items-center px-4 py-2 border-2 border-dashed border-gray-300 text-sm font-medium rounded-xl text-gray-600 bg-white hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                      <svg
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
                       </svg>
                       Add time slot
                     </button>
@@ -175,43 +254,49 @@
           </div>
         </div>
       </div>
-
-      <!-- Preview Panel -->
+      
+<!-- Preview Panel -->
       <div class="xl:col-span-1">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
           <div class="flex items-center justify-between mb-6">
             <h3 class="text-lg font-semibold text-gray-900">Schedule Preview</h3>
             <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              <%= @timezone %>
+              {@timezone}
             </div>
           </div>
-          
+
           <div class="space-y-4">
             <%= for day <- @days_of_week do %>
               <div class={[
                 "border rounded-lg p-4 transition-all",
-                if(day_enabled?(@availability, day.key), do: "border-blue-200 bg-blue-50", else: "border-gray-200 bg-gray-50")
+                if(day_enabled?(@availability, day.key),
+                  do: "border-blue-200 bg-blue-50",
+                  else: "border-gray-200 bg-gray-50"
+                )
               ]}>
                 <div class="flex items-center justify-between mb-2">
                   <h4 class={[
                     "font-medium text-sm",
-                    if(day_enabled?(@availability, day.key), do: "text-blue-900", else: "text-gray-500")
+                    if(day_enabled?(@availability, day.key),
+                      do: "text-blue-900",
+                      else: "text-gray-500"
+                    )
                   ]}>
-                    <%= day.label %>
+                    {day.label}
                   </h4>
-                  
+
                   <%= if day_enabled?(@availability, day.key) do %>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Available
                     </span>
                   <% end %>
                 </div>
-                
+
                 <%= if day_enabled?(@availability, day.key) do %>
                   <div class="space-y-1">
                     <%= for hours <- get_day_hours(@availability, day.key) do %>
                       <div class="text-xs font-medium text-blue-700 bg-white px-3 py-2 rounded-md border border-blue-200">
-                        <%= format_time_display(hours["start"]) %> - <%= format_time_display(hours["end"]) %>
+                        {format_time_display(hours["start"])} - {format_time_display(hours["end"])}
                       </div>
                     <% end %>
                   </div>
@@ -222,17 +307,21 @@
             <% end %>
           </div>
           
-          <!-- Summary -->
+<!-- Summary -->
           <div class="mt-6 pt-6 border-t border-gray-200">
             <div class="text-sm text-gray-600 space-y-1">
               <p class="flex justify-between">
                 <span>Active days:</span>
-                <span class="font-medium"><%= Enum.count(@availability, fn {_day, data} -> data.enabled end) %>/7</span>
+                <span class="font-medium">
+                  {Enum.count(@availability, fn {_day, data} -> data.enabled end)}/7
+                </span>
               </p>
               <p class="flex justify-between">
                 <span>Total slots:</span>
                 <span class="font-medium">
-                  <%= @availability |> Enum.map(fn {_day, data} -> length(data.hours) end) |> Enum.sum() %>
+                  {@availability
+                  |> Enum.map(fn {_day, data} -> length(data.hours) end)
+                  |> Enum.sum()}
                 </span>
               </p>
             </div>
