@@ -8,10 +8,12 @@ defmodule HelloWeb.AdminLive do
   @impl true
   def mount(_params, _session, socket) do
     time_slots = Appointments.list_time_slots()
+    appointments = Appointments.list_appointments()
 
     socket =
       socket
       |> assign(:time_slots, time_slots)
+      |> assign(:appointments, appointments)
       |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
       |> assign(:editing, nil)
 
@@ -23,10 +25,12 @@ defmodule HelloWeb.AdminLive do
     case Appointments.create_time_slot(time_slot_params) do
       {:ok, _time_slot} ->
         time_slots = Appointments.list_time_slots()
+        appointments = Appointments.list_appointments()
 
         socket =
           socket
           |> assign(:time_slots, time_slots)
+          |> assign(:appointments, appointments)
           |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
           |> put_flash(:info, "Time slot created successfully!")
 
@@ -106,6 +110,11 @@ defmodule HelloWeb.AdminLive do
     |> NaiveDateTime.to_string()
     |> String.replace("T", " at ")
     |> String.slice(0, 19)
+  end
+
+  defp format_time(datetime) do
+    time = NaiveDateTime.to_time(datetime)
+    Calendar.strftime(time, "%I:%M %p")
   end
 
   defp format_for_input(nil), do: ""
