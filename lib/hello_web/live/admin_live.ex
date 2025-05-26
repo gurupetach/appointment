@@ -108,6 +108,19 @@ defmodule HelloWeb.AdminLive do
     |> String.slice(0, 19)
   end
 
+  defp format_for_input(nil), do: ""
+
+  defp format_for_input(%NaiveDateTime{} = datetime) do
+    NaiveDateTime.to_string(datetime) |> String.slice(0, 16)
+  end
+
+  defp format_for_input(value) when is_binary(value), do: value
+  defp format_for_input(_), do: ""
+
+  defp format_for_textarea(nil), do: ""
+  defp format_for_textarea(value) when is_binary(value), do: value
+  defp format_for_textarea(_), do: ""
+
   defp slot_status(slot) do
     cond do
       slot.appointment -> "Booked"
