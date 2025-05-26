@@ -134,7 +134,17 @@ defmodule Hello.Appointments do
   def save_weekly_availability(availability_map, admin_id \\ nil) do
     Repo.transaction(fn ->
       Enum.each(availability_map, fn {day, day_data} ->
-        case Repo.get_by(WeeklyAvailability, day_of_week: day, admin_id: admin_id) do
+        # Use proper query for nil admin_id
+        existing =
+          if admin_id do
+            Repo.get_by(WeeklyAvailability, day_of_week: day, admin_id: admin_id)
+          else
+            Repo.one(
+              from w in WeeklyAvailability, where: w.day_of_week == ^day and is_nil(w.admin_id)
+            )
+          end
+
+        case existing do
           nil ->
             %WeeklyAvailability{}
             |> WeeklyAvailability.changeset(%{
@@ -145,8 +155,8 @@ defmodule Hello.Appointments do
             })
             |> Repo.insert!()
 
-          existing ->
-            existing
+          existing_record ->
+            existing_record
             |> WeeklyAvailability.changeset(%{
               is_enabled: day_data.enabled,
               time_slots: day_data.hours

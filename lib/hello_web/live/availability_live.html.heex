@@ -154,14 +154,14 @@
                                   ) == option.value
                                 }
                                 class={
-                                  unless(Map.get(option, :available, true),
+                                  unless(option.available,
                                     do: "text-gray-400",
                                     else: "text-black"
                                   )
                                 }
-                                disabled={not Map.get(option, :available, true)}
+                                disabled={not option.available}
                               >
-                                {option.label}{unless(Map.get(option, :available, true),
+                                {option.label}{unless(option.available,
                                   do: " (unavailable)",
                                   else: ""
                                 )}
@@ -197,14 +197,14 @@
                                   ) == option.value
                                 }
                                 class={
-                                  unless(Map.get(option, :available, true),
+                                  unless(option.available,
                                     do: "text-gray-400",
                                     else: "text-black"
                                   )
                                 }
-                                disabled={not Map.get(option, :available, true)}
+                                disabled={not option.available}
                               >
-                                {option.label}{unless(Map.get(option, :available, true),
+                                {option.label}{unless(option.available,
                                   do: " (unavailable)",
                                   else: ""
                                 )}

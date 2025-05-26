@@ -16,23 +16,37 @@ defmodule HelloWeb.AvailabilityLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    # Initialize default availability
-    default_availability = %{
-      "monday" => %{enabled: true, hours: [%{"start" => "09:00", "end" => "17:00"}]},
-      "tuesday" => %{enabled: true, hours: [%{"start" => "09:00", "end" => "17:00"}]},
-      "wednesday" => %{enabled: true, hours: [%{"start" => "09:00", "end" => "17:00"}]},
-      "thursday" => %{enabled: true, hours: [%{"start" => "09:00", "end" => "17:00"}]},
-      "friday" => %{enabled: true, hours: [%{"start" => "09:00", "end" => "17:00"}]},
-      "saturday" => %{enabled: false, hours: []},
-      "sunday" => %{enabled: false, hours: []}
-    }
+    # Load availability from database or use defaults
+    availability =
+      case Appointments.get_weekly_availability() do
+        empty_map when map_size(empty_map) == 0 ->
+          # Initialize with defaults if database is empty - using 4-digit military time
+          default_availability = %{
+            "monday" => %{enabled: true, hours: [%{"start" => "0900", "end" => "1700"}]},
+            "tuesday" => %{enabled: true, hours: [%{"start" => "0900", "end" => "1700"}]},
+            "wednesday" => %{enabled: true, hours: [%{"start" => "0900", "end" => "1700"}]},
+            "thursday" => %{enabled: true, hours: [%{"start" => "0900", "end" => "1700"}]},
+            "friday" => %{enabled: true, hours: [%{"start" => "0900", "end" => "1700"}]},
+            "saturday" => %{enabled: false, hours: []},
+            "sunday" => %{enabled: false, hours: []}
+          }
+
+          # Save defaults to database
+          Task.start(fn -> Appointments.save_weekly_availability(default_availability) end)
+          default_availability
+
+        existing_availability ->
+          # Convert existing colon format to 4-digit format
+          convert_availability_to_military_time(existing_availability)
+      end
 
     socket =
       socket
       |> assign(:days_of_week, @days_of_week)
-      |> assign(:availability, default_availability)
+      |> assign(:availability, availability)
       |> assign(:timezone, "East Africa Time")
       |> assign(:saving, false)
+      # Track unsaved changes
       |> assign(:pending_changes, %{})
 
     {:ok, socket}
@@ -48,7 +62,7 @@ defmodule HelloWeb.AvailabilityLive do
       | enabled: !current_day.enabled,
         hours:
           if(!current_day.enabled,
-            do: [%{"start" => "09:00", "end" => "17:00"}],
+            do: [%{"start" => "0900", "end" => "1700"}],
             else: current_day.hours
           )
     }
@@ -58,6 +72,7 @@ defmodule HelloWeb.AvailabilityLive do
     socket =
       socket
       |> assign(:availability, updated_availability)
+      # Auto-save for day toggles
       |> auto_save()
 
     {:noreply, socket}
@@ -82,10 +97,32 @@ defmodule HelloWeb.AvailabilityLive do
     updated_day = %{day_data | hours: updated_hours}
     updated_availability = Map.put(availability, day, updated_day)
 
+    # Track pending changes instead of auto-saving
+    pending_changes = Map.put(socket.assigns.pending_changes, "#{day}-#{index}", true)
+
     socket =
       socket
       |> assign(:availability, updated_availability)
-      |> auto_save()
+      |> assign(:pending_changes, pending_changes)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("save_slot", %{"day" => day, "index" => index}, socket) do
+    socket = assign(socket, :saving, true)
+
+    # Save to database
+    availability = socket.assigns.availability
+
+    Task.start(fn ->
+      case Appointments.save_weekly_availability(availability) do
+        {:ok, _} ->
+          send(self(), {:save_slot_complete, day, index, :success})
+
+        {:error, reason} ->
+          send(self(), {:save_slot_complete, day, index, {:error, reason}})
+      end
+    end)
 
     {:noreply, socket}
   end
@@ -131,7 +168,7 @@ defmodule HelloWeb.AvailabilityLive do
   end
 
   def handle_event("generate_slots", _params, socket) do
-    case generate_time_slots_from_availability(socket.assigns.availability) do
+    case Appointments.create_time_slots_from_availability() do
       {:ok, count} ->
         socket = put_flash(socket, :info, "Generated #{count} time slots successfully!")
         {:noreply, socket}
@@ -142,31 +179,102 @@ defmodule HelloWeb.AvailabilityLive do
     end
   end
 
-  # Auto-save functionality
+  # Auto-save functionality - now actually saves to database
   defp auto_save(socket) do
     socket = assign(socket, :saving, true)
 
-    # Simulate save delay
-    Process.send_after(self(), :save_complete, 500)
+    # Save to database in background
+    availability = socket.assigns.availability
+
+    Task.start(fn ->
+      case Appointments.save_weekly_availability(availability) do
+        {:ok, _} ->
+          send(self(), {:save_complete, :success})
+
+        {:error, reason} ->
+          send(self(), {:save_complete, {:error, reason}})
+      end
+    end)
 
     socket
   end
 
   @impl true
-  def handle_info(:save_complete, socket) do
-    # Here you would actually save to database
-    IO.inspect(socket.assigns.availability, label: "Saving Availability")
+  def handle_info({:save_slot_complete, day, index, :success}, socket) do
+    # Remove from pending changes
+    pending_changes = Map.delete(socket.assigns.pending_changes, "#{day}-#{index}")
 
     socket =
       socket
       |> assign(:saving, false)
-      |> put_flash(:info, "Availability saved automatically")
+      |> assign(:pending_changes, pending_changes)
+      |> put_flash(:info, "Time slot saved successfully")
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:save_slot_complete, _day, _index, {:error, reason}}, socket) do
+    socket =
+      socket
+      |> assign(:saving, false)
+      |> put_flash(:error, "Failed to save: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:save_complete, :success}, socket) do
+    socket =
+      socket
+      |> assign(:saving, false)
+      |> put_flash(:info, "Availability saved successfully")
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:save_complete, {:error, reason}}, socket) do
+    socket =
+      socket
+      |> assign(:saving, false)
+      |> put_flash(:error, "Failed to save: #{inspect(reason)}")
 
     {:noreply, socket}
   end
 
   # Helper functions
-  defp find_next_available_start(existing_hours) when existing_hours == [], do: "09:00"
+  defp convert_availability_to_military_time(availability) do
+    Enum.into(availability, %{}, fn {day, day_data} ->
+      converted_hours =
+        Enum.map(day_data.hours, fn hour ->
+          %{
+            "start" => convert_time_to_military(hour["start"]),
+            "end" => convert_time_to_military(hour["end"])
+          }
+        end)
+
+      {day, %{day_data | hours: converted_hours}}
+    end)
+  end
+
+  defp convert_time_to_military(time_string) when is_binary(time_string) do
+    case String.length(time_string) do
+      # Already in military format
+      4 ->
+        time_string
+
+      _ ->
+        case String.split(time_string, ":") do
+          [hour_str, minute_str] ->
+            "#{String.pad_leading(hour_str, 2, "0")}#{String.pad_leading(minute_str, 2, "0")}"
+
+          _ ->
+            time_string
+        end
+    end
+  end
+
+  defp convert_time_to_military(_), do: "0000"
+
+  defp find_next_available_start(existing_hours) when existing_hours == [], do: "0900"
 
   defp find_next_available_start(existing_hours) do
     latest_end =
@@ -177,26 +285,34 @@ defmodule HelloWeb.AvailabilityLive do
       |> List.last()
 
     case latest_end do
-      nil -> "09:00"
+      nil -> "0900"
       # 30 minute gap
       time -> add_hours_to_time(time, 0.5)
     end
   end
 
   defp add_hours_to_time(time_string, hours_to_add) do
-    [hour_str, minute_str] = String.split(time_string, ":")
-    hour = String.to_integer(hour_str)
-    minute = String.to_integer(minute_str)
+    # Handle both 4-digit and colon format
+    {hour, minute} =
+      case String.length(time_string) do
+        4 ->
+          {h, m} = String.split_at(time_string, 2)
+          {String.to_integer(h), String.to_integer(m)}
+
+        _ ->
+          [hour_str, minute_str] = String.split(time_string, ":")
+          {String.to_integer(hour_str), String.to_integer(minute_str)}
+      end
 
     total_minutes = hour * 60 + minute + round(hours_to_add * 60)
     new_hour = div(total_minutes, 60)
     new_minute = rem(total_minutes, 60)
 
-    # Cap at 23:30
+    # Cap at 23:30 and format as 4-digit
     if new_hour >= 24 do
-      "23:30"
+      "2330"
     else
-      "#{String.pad_leading("#{new_hour}", 2, "0")}:#{String.pad_leading("#{new_minute}", 2, "0")}"
+      "#{String.pad_leading("#{new_hour}", 2, "0")}#{String.pad_leading("#{new_minute}", 2, "0")}"
     end
   end
 
@@ -234,8 +350,9 @@ defmodule HelloWeb.AvailabilityLive do
           |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
 
         format_time_options()
-        |> Enum.filter(fn option ->
-          not time_conflicts_with_ranges?(option.value, nil, used_ranges)
+        |> Enum.map(fn option ->
+          is_available = not time_conflicts_with_ranges?(option.value, nil, used_ranges)
+          Map.put(option, :available, is_available)
         end)
 
       "end" ->
@@ -248,12 +365,18 @@ defmodule HelloWeb.AvailabilityLive do
             |> Enum.map(fn {hour, _idx} -> {hour["start"], hour["end"]} end)
 
           format_time_options()
-          |> Enum.filter(fn option ->
-            time_minutes(option.value) > time_minutes(current_start) + 30 and
-              not time_conflicts_with_ranges?(current_start, option.value, used_ranges)
+          |> Enum.map(fn option ->
+            is_valid_end = time_minutes(option.value) > time_minutes(current_start) + 30
+
+            is_available =
+              is_valid_end and
+                not time_conflicts_with_ranges?(current_start, option.value, used_ranges)
+
+            Map.put(option, :available, is_available)
           end)
         else
           format_time_options()
+          |> Enum.map(fn option -> Map.put(option, :available, true) end)
         end
     end
   end
@@ -320,20 +443,6 @@ defmodule HelloWeb.AvailabilityLive do
     end
   end
 
-  defp format_12_hour(hour, minute) do
-    period = if hour < 12, do: "AM", else: "PM"
-
-    display_hour =
-      case hour do
-        0 -> 12
-        h when h > 12 -> h - 12
-        h -> h
-      end
-
-    minute_str = String.pad_leading("#{minute}", 2, "0")
-    "#{display_hour}:#{minute_str} #{period}"
-  end
-
   defp format_time_display(time_string) when is_binary(time_string) do
     case String.length(time_string) do
       # Already in 4-digit format like "0900"
@@ -354,6 +463,10 @@ defmodule HelloWeb.AvailabilityLive do
 
   defp format_time_display(_), do: "----"
 
+  defp has_pending_changes?(pending_changes, day, index) do
+    Map.has_key?(pending_changes, "#{day}-#{index}")
+  end
+
   defp day_enabled?(availability, day_key) do
     Map.get(availability, day_key, %{enabled: false}).enabled
   end
@@ -367,9 +480,5 @@ defmodule HelloWeb.AvailabilityLive do
       nil -> ""
       hour -> Map.get(hour, field, "")
     end
-  end
-
-  defp has_pending_changes?(pending_changes, day, index) do
-    Map.has_key?(pending_changes, "#{day}-#{index}")
   end
 end
