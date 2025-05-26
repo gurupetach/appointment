@@ -117,14 +117,8 @@ defmodule Hello.Appointments do
           {day, %{enabled: false, hours: []}}
 
         record ->
-          # Handle both list and map formats for time_slots
-          time_slots =
-            case record.time_slots do
-              slots when is_list(slots) -> slots
-              %{} -> []
-              _ -> []
-            end
-
+          # time_slots should now be a list from the database
+          time_slots = record.time_slots || []
           {day, %{enabled: record.is_enabled, hours: time_slots}}
       end
     end)

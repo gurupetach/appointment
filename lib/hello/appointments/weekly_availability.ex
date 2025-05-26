@@ -8,8 +8,8 @@ defmodule Hello.Appointments.WeeklyAvailability do
   schema "weekly_availability" do
     field :day_of_week, :string
     field :is_enabled, :boolean, default: true
-    # Change from [] to %{}
-    field :time_slots, :map, default: %{}
+    # Change to array of maps
+    field :time_slots, {:array, :map}, default: []
     field :admin_id, :integer
 
     timestamps()
@@ -43,29 +43,50 @@ defmodule Hello.Appointments.WeeklyAvailability do
         add_error(changeset, :time_slots, "invalid time slot format")
       end
     else
-      # If time_slots is not a list, convert it or set default
-      if time_slots == %{} or is_nil(time_slots) do
+      # Allow empty lists
+      if time_slots == [] or is_nil(time_slots) do
         changeset
       else
-        add_error(changeset, :time_slots, "time_slots must be a list")
+        add_error(changeset, :time_slots, "time_slots must be a list of maps")
       end
     end
   end
 
   defp valid_time_format?(time_string) when is_binary(time_string) do
-    case String.split(time_string, ":") do
-      [hour_str, minute_str] ->
-        case {Integer.parse(hour_str), Integer.parse(minute_str)} do
-          {{hour, ""}, {minute, ""}}
-          when hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 ->
-            true
+    case String.length(time_string) do
+      4 ->
+        # Validate 4-digit format like "0900", "1730"
+        case String.split_at(time_string, 2) do
+          {hour_str, minute_str} ->
+            case {Integer.parse(hour_str), Integer.parse(minute_str)} do
+              {{hour, ""}, {minute, ""}}
+              when hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 ->
+                true
+
+              _ ->
+                false
+            end
 
           _ ->
             false
         end
 
       _ ->
-        false
+        # Validate colon format like "09:00", "17:30"
+        case String.split(time_string, ":") do
+          [hour_str, minute_str] ->
+            case {Integer.parse(hour_str), Integer.parse(minute_str)} do
+              {{hour, ""}, {minute, ""}}
+              when hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 ->
+                true
+
+              _ ->
+                false
+            end
+
+          _ ->
+            false
+        end
     end
   end
 
