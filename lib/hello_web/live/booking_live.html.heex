@@ -1,234 +1,539 @@
-<div class="max-w-4xl mx-auto p-6">
-  <h1 class="text-3xl font-bold text-gray-900 mb-8">Book an Appointment</h1>
-
-  <%= case @booking_step do %>
-    <% :select_time -> %>
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-6">Select an Available Time</h2>
-
-        <%= if @available_slots == [] do %>
-          <div class="text-center py-12">
-            <div class="text-gray-500 text-lg mb-4">
-              No appointments are currently available for booking.
-            </div>
-            <p class="text-gray-400">
-              Please check back later or contact us directly.
-            </p>
-          </div>
-        <% else %>
-          <div class="space-y-6">
-            <%= for {date, slots} <- group_slots_by_date(@available_slots) do %>
-              <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-3">
-                  {format_date(List.first(slots).start_time)}
-                </h3>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <%= for slot <- slots do %>
-                    <button
-                      phx-click="select_slot"
-                      phx-value-slot_id={slot.id}
-                      class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left"
-                    >
-                      <div class="font-medium text-gray-900">
-                        {format_time(slot.start_time)} - {format_time(slot.end_time)}
-                      </div>
-                      <%= if slot.admin_notes do %>
-                        <div class="text-sm text-gray-500 mt-1">
-                          {slot.admin_notes}
-                        </div>
-                      <% end %>
-                    </button>
-                  <% end %>
-                </div>
-              </div>
+# lib/hello_web/live/booking_live.html.heex
+<div class="min-h-screen bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    
+<!-- Header -->
+    <div class="text-center mb-8 sm:mb-12">
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+        Book Your Appointment
+      </h1>
+      <p class="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+        Choose a convenient time that works for you. We'll send you a confirmation once your appointment is booked.
+      </p>
+    </div>
+    
+<!-- Progress Steps -->
+    <div class="mb-8 sm:mb-12">
+      <div class="flex items-center justify-center space-x-4 sm:space-x-8">
+        <div class={[
+          "flex items-center space-x-2 sm:space-x-3",
+          if(@booking_step in [:select_time, :enter_details, :success],
+            do: "text-blue-600",
+            else: "text-gray-400"
+          )
+        ]}>
+          <div class={[
+            "w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium",
+            if(@booking_step in [:select_time, :enter_details, :success],
+              do: "bg-blue-600 text-white",
+              else: "bg-gray-200 text-gray-500"
+            )
+          ]}>
+            <%= if @booking_step in [:enter_details, :success] do %>
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            <% else %>
+              1
             <% end %>
           </div>
-        <% end %>
-      </div>
-    <% :enter_details -> %>
-      <div class="bg-white shadow rounded-lg p-6">
-        <div class="mb-6">
-          <h2 class="text-xl font-semibold">Appointment Details</h2>
-          <div class="mt-2 p-4 bg-blue-50 rounded-lg">
-            <p class="text-blue-800 font-medium">
-              Selected Time: {format_datetime(@selected_slot.start_time)} - {format_time(
-                @selected_slot.end_time
-              )}
-            </p>
-            <%= if @selected_slot.admin_notes do %>
-              <p class="text-blue-600 text-sm mt-1">
-                Note: {@selected_slot.admin_notes}
-              </p>
-            <% end %>
-          </div>
+          <span class="text-xs sm:text-sm font-medium">Select Time</span>
         </div>
 
-        <form phx-submit="book_appointment" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label
-                for="appointment_customer_name"
-                class="block text-sm font-medium text-gray-900 mb-2"
-              >
-                Full Name *
-              </label>
-              <input
-                type="text"
-                id="appointment_customer_name"
-                name="appointment[customer_name]"
-                value={format_field_value(@form[:customer_name].value)}
-                required
-                placeholder="Enter your full name"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+        <div class="w-8 sm:w-12 h-px bg-gray-200"></div>
 
-            <div>
-              <label
-                for="appointment_customer_email"
-                class="block text-sm font-medium text-gray-900 mb-2"
-              >
-                Email Address *
-              </label>
-              <input
-                type="email"
-                id="appointment_customer_email"
-                name="appointment[customer_email]"
-                value={format_field_value(@form[:customer_email].value)}
-                required
-                placeholder="your@email.com"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+        <div class={[
+          "flex items-center space-x-2 sm:space-x-3",
+          if(@booking_step in [:enter_details, :success],
+            do: "text-blue-600",
+            else: "text-gray-400"
+          )
+        ]}>
+          <div class={[
+            "w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium",
+            if(@booking_step in [:enter_details, :success],
+              do: "bg-blue-600 text-white",
+              else: "bg-gray-200 text-gray-500"
+            )
+          ]}>
+            <%= if @booking_step == :success do %>
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            <% else %>
+              2
+            <% end %>
           </div>
+          <span class="text-xs sm:text-sm font-medium">Your Details</span>
+        </div>
 
-          <div>
-            <label
-              for="appointment_customer_phone"
-              class="block text-sm font-medium text-gray-900 mb-2"
-            >
-              Phone Number (Optional)
-            </label>
-            <input
-              type="tel"
-              id="appointment_customer_phone"
-              name="appointment[customer_phone]"
-              value={format_field_value(@form[:customer_phone].value)}
-              placeholder="(555) 123-4567"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+        <div class="w-8 sm:w-12 h-px bg-gray-200"></div>
+
+        <div class={[
+          "flex items-center space-x-2 sm:space-x-3",
+          if(@booking_step == :success, do: "text-blue-600", else: "text-gray-400")
+        ]}>
+          <div class={[
+            "w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium",
+            if(@booking_step == :success,
+              do: "bg-blue-600 text-white",
+              else: "bg-gray-200 text-gray-500"
+            )
+          ]}>
+            <%= if @booking_step == :success do %>
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            <% else %>
+              3
+            <% end %>
           </div>
-
-          <div>
-            <label for="appointment_notes" class="block text-sm font-medium text-gray-900 mb-2">
-              Additional Notes (Optional)
-            </label>
-            <textarea
-              id="appointment_notes"
-              name="appointment[notes]"
-              placeholder="Any special requests or notes..."
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows="3"
-            ><%= format_field_value(@form[:notes].value) %></textarea>
-          </div>
-
-          <div class="flex space-x-4 pt-4">
-            <button
-              type="submit"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm"
-            >
-              Confirm Booking
-            </button>
-
-            <button
-              type="button"
-              phx-click="back_to_selection"
-              class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Back to Time Selection
-            </button>
-          </div>
-        </form>
+          <span class="text-xs sm:text-sm font-medium">Confirmation</span>
+        </div>
       </div>
-    <% :success -> %>
-      <div class="bg-white shadow rounded-lg p-6 text-center">
-        <div class="mb-6">
-          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg
-              class="h-6 w-6 text-green-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+    </div>
+    
+<!-- Main Content -->
+    <%= case @booking_step do %>
+      <% :select_time -> %>
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-4 sm:py-6 border-b border-gray-200">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 class="text-lg sm:text-xl font-semibold text-gray-900">
+                  Choose Your Preferred Time
+                </h2>
+                <p class="text-sm text-gray-600 mt-1">Select from available appointment slots</p>
+              </div>
+
+              <button
+                phx-click="refresh_slots"
+                class="mt-3 sm:mt-0 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <%= if @available_slots == [] do %>
+            <div class="text-center py-12 sm:py-16">
+              <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  class="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">No Available Times</h3>
+              <p class="text-gray-500 max-w-sm mx-auto mb-6">
+                There are currently no available appointment slots. Please check back later or contact us directly.
+              </p>
+              <button
+                phx-click="refresh_slots"
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Check Again
+              </button>
+            </div>
+          <% else %>
+            <div class="p-4 sm:p-6">
+              <div class="space-y-6 sm:space-y-8">
+                <%= for {date, slots} <- group_slots_by_date(@available_slots) do %>
+                  <div>
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <div class={[
+                        "w-2 h-2 rounded-full mr-3",
+                        if(is_today?(date),
+                          do: "bg-green-500",
+                          else: if(is_tomorrow?(date), do: "bg-blue-500", else: "bg-gray-400")
+                        )
+                      ]}>
+                      </div>
+                      {format_date_header(date)}
+                    </h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                      <%= for slot <- slots do %>
+                        <button
+                          phx-click="select_slot"
+                          phx-value-slot_id={slot.id}
+                          class="group relative p-4 sm:p-5 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          <div class="flex items-center justify-between mb-2">
+                            <div class="text-lg sm:text-xl font-semibold text-gray-900 group-hover:text-blue-900">
+                              {format_time_24h(slot.start_time)}
+                            </div>
+                            <div class="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                              {get_duration_minutes(slot.start_time, slot.end_time)} min
+                            </div>
+                          </div>
+
+                          <div class="text-sm text-gray-600 mb-3">
+                            Until {format_time_24h(slot.end_time)}
+                          </div>
+
+                          <%= if slot.admin_notes do %>
+                            <div class="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                              {slot.admin_notes}
+                            </div>
+                          <% end %>
+
+                          <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg
+                              class="w-5 h-5 text-blue-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </div>
+                        </button>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% :enter_details -> %>
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-4 sm:py-6 border-b border-gray-200">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Appointment Details</h2>
+            <div class="mt-3 p-3 sm:p-4 bg-white rounded-lg border border-blue-200">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-600">Selected Time</p>
+                  <p class="text-base sm:text-lg font-semibold text-blue-900">
+                    {format_date(@selected_slot.start_time)}
+                  </p>
+                  <p class="text-sm text-blue-700">
+                    {format_time_24h(@selected_slot.start_time)} - {format_time_24h(
+                      @selected_slot.end_time
+                    )} ({get_duration_minutes(@selected_slot.start_time, @selected_slot.end_time)} minutes)
+                  </p>
+                </div>
+
+                <button
+                  phx-click="back_to_selection"
+                  class="mt-3 sm:mt-0 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Change Time
+                </button>
+              </div>
+
+              <%= if @selected_slot.admin_notes do %>
+                <div class="mt-3 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                  <span class="font-medium">Note:</span> {@selected_slot.admin_notes}
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <form phx-submit="book_appointment" class="p-4 sm:p-6">
+            <div class="space-y-4 sm:space-y-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                  <input
+                    type="text"
+                    name="appointment[customer_name]"
+                    value={format_field_value(@form[:customer_name].value)}
+                    required
+                    placeholder="Enter your full name"
+                    class="block w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    name="appointment[customer_email]"
+                    value={format_field_value(@form[:customer_email].value)}
+                    required
+                    placeholder="your@email.com"
+                    class="block w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number (Optional)
+                </label>
+                <input
+                  type="tel"
+                  name="appointment[customer_phone]"
+                  value={format_field_value(@form[:customer_phone].value)}
+                  placeholder="(555) 123-4567"
+                  class="block w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Notes (Optional)
+                </label>
+                <textarea
+                  name="appointment[notes]"
+                  placeholder="Any special requests or information you'd like us to know..."
+                  rows="4"
+                  class="block w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base resize-none"
+                ><%= format_field_value(@form[:notes].value) %></textarea>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={@loading}
+                  class="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <%= if @loading do %>
+                    <svg
+                      class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      >
+                      </circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      >
+                      </path>
+                    </svg>
+                    Booking...
+                  <% else %>
+                    <svg
+                      class="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Confirm Booking
+                  <% end %>
+                </button>
+
+                <button
+                  type="button"
+                  phx-click="back_to_selection"
+                  class="flex-1 sm:flex-none px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                >
+                  <svg
+                    class="w-5 h-5 mr-2 inline"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  Back to Times
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      <% :success -> %>
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div class="text-center p-6 sm:p-8 lg:p-12">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+              <svg
+                class="h-8 w-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-bold text-green-800 mb-4">
+              Booking Confirmed!
+            </h2>
+
+            <p class="text-base sm:text-lg text-gray-600 mb-8 max-w-md mx-auto">
+              Your appointment has been successfully booked. We'll send you a confirmation email shortly.
+            </p>
+
+            <div class="bg-gray-50 rounded-xl p-4 sm:p-6 mb-8 text-left max-w-md mx-auto">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Appointment Summary</h3>
+
+              <div class="space-y-3">
+                <div class="flex justify-between items-start">
+                  <span class="text-sm font-medium text-gray-600">Date & Time:</span>
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-gray-900">
+                      {format_date(@booked_appointment.time_slot.start_time)}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                      {format_time_24h(@booked_appointment.time_slot.start_time)} - {format_time_24h(
+                        @booked_appointment.time_slot.end_time
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex justify-between">
+                  <span class="text-sm font-medium text-gray-600">Name:</span>
+                  <span class="text-sm text-gray-900">{@booked_appointment.customer_name}</span>
+                </div>
+
+                <div class="flex justify-between">
+                  <span class="text-sm font-medium text-gray-600">Email:</span>
+                  <span class="text-sm text-gray-900">{@booked_appointment.customer_email}</span>
+                </div>
+
+                <%= if @booked_appointment.customer_phone do %>
+                  <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-600">Phone:</span>
+                    <span class="text-sm text-gray-900">
+                      {@booked_appointment.customer_phone}
+                    </span>
+                  </div>
+                <% end %>
+
+                <%= if @booked_appointment.notes do %>
+                  <div class="pt-2 border-t border-gray-200">
+                    <span class="text-sm font-medium text-gray-600">Notes:</span>
+                    <p class="text-sm text-gray-900 mt-1">{@booked_appointment.notes}</p>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <button
+                phx-click="book_another"
+                class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                Book Another Appointment
+              </button>
+
+              <p class="text-xs sm:text-sm text-gray-500">
+                A confirmation email has been sent to {@booked_appointment.customer_email}
+              </p>
+            </div>
+          </div>
+        </div>
+    <% end %>
+    
+<!-- Help Section -->
+    <div class="mt-8 sm:mt-12 text-center">
+      <div class="bg-gray-50 rounded-xl p-4 sm:p-6">
+        <h3 class="text-sm font-medium text-gray-900 mb-2">Need Help?</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          Having trouble booking an appointment or need to reschedule?
+        </p>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center">
+          <a
+            href="mailto:support@company.com"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M5 13l4 4L19 7"
+                d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-          </div>
-
-          <h2 class="text-2xl font-bold text-green-800 mb-2">
-            Booking Confirmed!
-          </h2>
-
-          <p class="text-gray-600 mb-6">
-            {@success_message}
-          </p>
+            Email Support
+          </a>
+          <a
+            href="tel:+1234567890"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+              />
+            </svg>
+            Call Us
+          </a>
         </div>
-
-        <div class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h3 class="text-lg font-semibold mb-4">Appointment Summary</h3>
-
-          <div class="space-y-2 text-left">
-            <div class="flex justify-between">
-              <span class="font-medium">Date & Time:</span>
-              <span>
-                {format_datetime(@booked_appointment.time_slot.start_time)} - {format_time(
-                  @booked_appointment.time_slot.end_time
-                )}
-              </span>
-            </div>
-
-            <div class="flex justify-between">
-              <span class="font-medium">Name:</span>
-              <span>{@booked_appointment.customer_name}</span>
-            </div>
-
-            <div class="flex justify-between">
-              <span class="font-medium">Email:</span>
-              <span>{@booked_appointment.customer_email}</span>
-            </div>
-
-            <%= if @booked_appointment.customer_phone do %>
-              <div class="flex justify-between">
-                <span class="font-medium">Phone:</span>
-                <span>{@booked_appointment.customer_phone}</span>
-              </div>
-            <% end %>
-
-            <%= if @booked_appointment.notes do %>
-              <div class="flex justify-between">
-                <span class="font-medium">Notes:</span>
-                <span>{@booked_appointment.notes}</span>
-              </div>
-            <% end %>
-          </div>
-        </div>
-
-        <div class="text-sm text-gray-500 mb-6">
-          <p>A confirmation email will be sent to {@booked_appointment.customer_email}.</p>
-          <p>Please save this information for your records.</p>
-        </div>
-
-        <button
-          phx-click="book_another"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
-        >
-          Book Another Appointment
-        </button>
       </div>
-  <% end %>
+    </div>
+  </div>
 </div>
