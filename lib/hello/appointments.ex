@@ -186,7 +186,6 @@ defmodule Hello.Appointments do
     {:ok, slots_created}
   end
 
-  # In lib/hello/appointments.ex, replace create_slots_for_day:
 
   defp create_slots_for_day(date, hours) when is_list(hours) do
     Enum.map(hours, fn hour_slot ->
