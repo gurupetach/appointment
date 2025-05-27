@@ -186,20 +186,36 @@ defmodule Hello.Appointments do
     {:ok, slots_created}
   end
 
+  # In lib/hello/appointments.ex, replace create_slots_for_day:
+
   defp create_slots_for_day(date, hours) when is_list(hours) do
     Enum.map(hours, fn hour_slot ->
-      start_datetime = combine_date_time(date, hour_slot["start"])
-      end_datetime = combine_date_time(date, hour_slot["end"])
+      # Safely extract start and end times
+      start_time = safe_get_time(hour_slot, "start")
+      end_time = safe_get_time(hour_slot, "end")
 
-      case create_time_slot(%{
-             start_time: start_datetime,
-             end_time: end_datetime,
-             is_available: true,
-             admin_notes: "Auto-generated from weekly availability"
-           }) do
-        {:ok, slot} -> slot
-        # Skip if already exists or invalid
-        {:error, _} -> nil
+      if start_time && end_time do
+        start_datetime = combine_date_time(date, start_time)
+        end_datetime = combine_date_time(date, end_time)
+
+        # Check if slot already exists to avoid duplicates
+        existing = Repo.get_by(TimeSlot, start_time: start_datetime, end_time: end_datetime)
+
+        if existing do
+          existing
+        else
+          case create_time_slot(%{
+                 start_time: start_datetime,
+                 end_time: end_datetime,
+                 is_available: true,
+                 admin_notes: "Auto-generated from weekly availability"
+               }) do
+            {:ok, slot} -> slot
+            {:error, _} -> nil
+          end
+        end
+      else
+        nil
       end
     end)
     |> Enum.reject(&is_nil/1)
@@ -207,16 +223,42 @@ defmodule Hello.Appointments do
 
   defp create_slots_for_day(_date, _hours), do: []
 
+  # Add this helper function to safely extract time values:
+  defp safe_get_time(hour_slot, field) when is_map(hour_slot) do
+    case Map.get(hour_slot, field) do
+      time_string when is_binary(time_string) -> time_string
+      time_list when is_list(time_list) -> List.first(time_list)
+      _ -> nil
+    end
+  end
+
+  defp safe_get_time(_, _), do: nil
+
   defp combine_date_time(date, time_string) when is_binary(time_string) do
-    [hour_str, minute_str] = String.split(time_string, ":")
-    hour = String.to_integer(hour_str)
-    minute = String.to_integer(minute_str)
+    # Handle 4-digit military time format
+    {hour, minute} =
+      case String.length(time_string) do
+        4 ->
+          {h, m} = String.split_at(time_string, 2)
+          {String.to_integer(h), String.to_integer(m)}
+
+        _ ->
+          [hour_str, minute_str] = String.split(time_string, ":")
+          {String.to_integer(hour_str), String.to_integer(minute_str)}
+      end
 
     {:ok, datetime} = NaiveDateTime.new(date, ~T[00:00:00])
     NaiveDateTime.add(datetime, hour * 3600 + minute * 60, :second)
   end
 
-  defp combine_date_time(_date, _time_string), do: nil
+  # Handle when time_string is a list (fix the error)
+  defp combine_date_time(date, time_list) when is_list(time_list) do
+    time_string = List.first(time_list) || "0900"
+    combine_date_time(date, time_string)
+  end
+
+  # Handle nil or other types
+  defp combine_date_time(date, _), do: combine_date_time(date, "0900")
 
   defp day_number_to_name(day_number) do
     case day_number do
@@ -228,5 +270,19 @@ defmodule Hello.Appointments do
       6 -> "saturday"
       7 -> "sunday"
     end
+  end
+
+  def regenerate_time_slots_from_availability(admin_id \\ nil) do
+    # Delete existing auto-generated slots to avoid duplicates
+    from(ts in TimeSlot, where: ts.admin_notes == "Auto-generated from weekly availability")
+    |> Repo.delete_all()
+
+    # Generate fresh slots from current availability
+    create_time_slots_from_availability(admin_id)
+  end
+
+  def delete_auto_generated_slots() do
+    from(ts in TimeSlot, where: ts.admin_notes == "Auto-generated from weekly availability")
+    |> Repo.delete_all()
   end
 end

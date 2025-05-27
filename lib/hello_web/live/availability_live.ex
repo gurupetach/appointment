@@ -113,7 +113,7 @@ defmodule HelloWeb.AvailabilityLive do
     socket =
       socket
       |> assign(:availability, updated_availability)
-      |> save_to_database(updated_availability)
+      |> save_to_database_and_regenerate_slots(updated_availability)
 
     {:noreply, socket}
   end
@@ -140,7 +140,115 @@ defmodule HelloWeb.AvailabilityLive do
     socket =
       socket
       |> assign(:availability, updated_availability)
-      |> save_to_database(updated_availability)
+      |> save_to_database_and_regenerate_slots(updated_availability)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("toggle_day", %{"day" => day}, socket) do
+    availability = socket.assigns.availability
+    current_day = Map.get(availability, day)
+
+    updated_day = %{
+      current_day
+      | enabled: !current_day.enabled,
+        hours:
+          if(!current_day.enabled,
+            do: [%{"start" => "0900", "end" => "0930"}],
+            else: current_day.hours
+          )
+    }
+
+    updated_availability = Map.put(availability, day, updated_day)
+
+    socket =
+      socket
+      |> assign(:availability, updated_availability)
+      |> save_to_database_and_regenerate_slots(updated_availability)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("add_hours", %{"day" => day}, socket) do
+    availability = socket.assigns.availability
+    day_data = Map.get(availability, day)
+
+    # Find next available time slot
+    existing_hours = day_data.hours
+    next_start = find_next_available_start(existing_hours)
+    # Default 30 minutes slot
+    next_end = add_minutes_to_time(next_start, 30)
+
+    new_hour = %{"start" => next_start, "end" => next_end}
+    updated_hours = day_data.hours ++ [new_hour]
+    updated_day = %{day_data | hours: updated_hours}
+    updated_availability = Map.put(availability, day, updated_day)
+
+    socket =
+      socket
+      |> assign(:availability, updated_availability)
+      |> save_to_database_and_regenerate_slots(updated_availability)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("remove_hours", %{"day" => day, "index" => index}, socket) do
+    availability = socket.assigns.availability
+    day_data = Map.get(availability, day)
+    index = String.to_integer(index)
+
+    updated_hours = List.delete_at(day_data.hours, index)
+    updated_day = %{day_data | hours: updated_hours}
+    updated_availability = Map.put(availability, day, updated_day)
+
+    socket =
+      socket
+      |> assign(:availability, updated_availability)
+      |> save_to_database_and_regenerate_slots(updated_availability)
+
+    {:noreply, socket}
+  end
+
+  # Replace the old save_to_database function with this comprehensive one:
+  defp save_to_database_and_regenerate_slots(socket, availability) do
+    socket = assign(socket, :saving, true)
+
+    # Save to database and regenerate time slots in background
+    Task.start(fn ->
+      case Appointments.save_weekly_availability(availability) do
+        {:ok, _} ->
+          # After saving weekly availability, regenerate actual time slots
+          case Appointments.regenerate_time_slots_from_availability() do
+            {:ok, count} ->
+              send(self(), {:save_complete, :success, count})
+
+            {:error, reason} ->
+              send(self(), {:save_complete, {:error, reason}})
+          end
+
+        {:error, reason} ->
+          send(self(), {:save_complete, {:error, reason}})
+      end
+    end)
+
+    socket
+  end
+
+  @impl true
+  def handle_info({:save_complete, :success, slot_count}, socket) do
+    socket =
+      socket
+      |> assign(:saving, false)
+      |> put_flash(:info, "Availability saved and #{slot_count} time slots regenerated!")
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:save_complete, {:error, reason}}, socket) do
+    socket =
+      socket
+      |> assign(:saving, false)
+      |> put_flash(:error, "Failed to save: #{inspect(reason)}")
 
     {:noreply, socket}
   end
