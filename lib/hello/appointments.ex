@@ -186,7 +186,6 @@ defmodule Hello.Appointments do
     {:ok, slots_created}
   end
 
-
   defp create_slots_for_day(date, hours) when is_list(hours) do
     Enum.map(hours, fn hour_slot ->
       # Safely extract start and end times
