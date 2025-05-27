@@ -3,7 +3,6 @@ defmodule HelloWeb.AdminLive do
   use HelloWeb, :live_view
 
   alias Hello.Appointments
-  alias Hello.Appointments.TimeSlot
 
   @impl true
   def mount(_params, _session, socket) do
@@ -14,135 +13,139 @@ defmodule HelloWeb.AdminLive do
       socket
       |> assign(:time_slots, time_slots)
       |> assign(:appointments, appointments)
-      |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
-      |> assign(:editing, nil)
 
     {:ok, socket}
   end
 
   @impl true
-  def handle_event("create_slot", %{"time_slot" => time_slot_params}, socket) do
-    case Appointments.create_time_slot(time_slot_params) do
+  def handle_event(
+        "create_slot",
+        %{"time_slot" => time_slot_params, "duration" => duration},
+        socket
+      ) do
+    start_time = parse_datetime(time_slot_params["start_time"])
+    duration_minutes = String.to_integer(duration)
+    end_time = NaiveDateTime.add(start_time, duration_minutes * 60, :second)
+
+    slot_params = %{
+      start_time: start_time,
+      end_time: end_time,
+      is_available: true,
+      admin_notes: "Created via admin dashboard"
+    }
+
+    case Appointments.create_time_slot(slot_params) do
       {:ok, _time_slot} ->
         time_slots = Appointments.list_time_slots()
-        appointments = Appointments.list_appointments()
 
         socket =
           socket
           |> assign(:time_slots, time_slots)
-          |> assign(:appointments, appointments)
-          |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
           |> put_flash(:info, "Time slot created successfully!")
 
         {:noreply, socket}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+        socket =
+          put_flash(socket, :error, "Failed to create time slot: #{format_errors(changeset)}")
+
+        {:noreply, socket}
     end
   end
 
-  def handle_event("edit_slot", %{"id" => id}, socket) do
+  def handle_event("delete_slot", %{"id" => id}, socket) do
     time_slot = Appointments.get_time_slot!(id)
-    form = to_form(Appointments.change_time_slot(time_slot))
 
-    socket =
-      socket
-      |> assign(:editing, String.to_integer(id))
-      |> assign(:form, form)
-
-    {:noreply, socket}
-  end
-
-  def handle_event("update_slot", %{"time_slot" => time_slot_params}, socket) do
-    time_slot = Appointments.get_time_slot!(socket.assigns.editing)
-
-    case Appointments.update_time_slot(time_slot, time_slot_params) do
-      {:ok, _time_slot} ->
+    case Appointments.delete_time_slot(time_slot) do
+      {:ok, _} ->
         time_slots = Appointments.list_time_slots()
 
         socket =
           socket
           |> assign(:time_slots, time_slots)
-          |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
-          |> assign(:editing, nil)
-          |> put_flash(:info, "Time slot updated successfully!")
+          |> put_flash(:info, "Time slot deleted successfully!")
 
         {:noreply, socket}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+      {:error, _} ->
+        socket = put_flash(socket, :error, "Failed to delete time slot")
+        {:noreply, socket}
     end
   end
 
-  def handle_event("cancel_edit", _params, socket) do
-    socket =
-      socket
-      |> assign(:editing, nil)
-      |> assign(:form, to_form(Appointments.change_time_slot(%TimeSlot{})))
+  # Helper functions for template
+  defp count_available_slots(time_slots) do
+    now = NaiveDateTime.utc_now()
 
-    {:noreply, socket}
+    time_slots
+    |> Enum.filter(fn slot ->
+      slot.is_available &&
+        NaiveDateTime.compare(slot.start_time, now) == :gt &&
+        is_nil(slot.appointment)
+    end)
+    |> length()
   end
 
-  def handle_event("delete_slot", %{"id" => id}, socket) do
-    time_slot = Appointments.get_time_slot!(id)
-    {:ok, _} = Appointments.delete_time_slot(time_slot)
+  defp count_today_appointments(appointments) do
+    today = Date.utc_today()
 
-    time_slots = Appointments.list_time_slots()
-
-    socket =
-      socket
-      |> assign(:time_slots, time_slots)
-      |> put_flash(:info, "Time slot deleted successfully!")
-
-    {:noreply, socket}
+    appointments
+    |> Enum.filter(fn appointment ->
+      appointment_date = NaiveDateTime.to_date(appointment.time_slot.start_time)
+      Date.compare(appointment_date, today) == :eq
+    end)
+    |> length()
   end
 
-  def handle_event("toggle_availability", %{"id" => id}, socket) do
-    time_slot = Appointments.get_time_slot!(id)
-    {:ok, _} = Appointments.update_time_slot(time_slot, %{is_available: !time_slot.is_available})
-
-    time_slots = Appointments.list_time_slots()
-    {:noreply, assign(socket, :time_slots, time_slots)}
+  defp count_unique_customers(appointments) do
+    appointments
+    |> Enum.map(& &1.customer_email)
+    |> Enum.uniq()
+    |> length()
   end
 
-  defp format_datetime(datetime) do
-    datetime
-    |> NaiveDateTime.to_string()
-    |> String.replace("T", " at ")
-    |> String.slice(0, 19)
+  defp get_upcoming_slots(time_slots) do
+    now = NaiveDateTime.utc_now()
+
+    time_slots
+    |> Enum.filter(fn slot ->
+      NaiveDateTime.compare(slot.start_time, now) == :gt
+    end)
+    |> Enum.sort_by(& &1.start_time, NaiveDateTime)
   end
 
-  defp format_time(datetime) do
-    time = NaiveDateTime.to_time(datetime)
-    Calendar.strftime(time, "%I:%M %p")
-  end
+  defp format_datetime_short(datetime) do
+    date = NaiveDateTime.to_date(datetime)
+    today = Date.utc_today()
+    tomorrow = Date.add(today, 1)
 
-  defp format_for_input(nil), do: ""
-
-  defp format_for_input(%NaiveDateTime{} = datetime) do
-    NaiveDateTime.to_string(datetime) |> String.slice(0, 16)
-  end
-
-  defp format_for_input(value) when is_binary(value), do: value
-  defp format_for_input(_), do: ""
-
-  defp format_for_textarea(nil), do: ""
-  defp format_for_textarea(value) when is_binary(value), do: value
-  defp format_for_textarea(_), do: ""
-
-  defp slot_status(slot) do
-    cond do
-      slot.appointment -> "Booked"
-      slot.is_available -> "Available"
-      true -> "Unavailable"
+    case Date.compare(date, today) do
+      :eq -> "Today"
+      :gt when date == tomorrow -> "Tomorrow"
+      _ -> Calendar.strftime(date, "%b %d")
     end
   end
 
-  defp status_class(slot) do
-    cond do
-      slot.appointment -> "text-red-600 bg-red-100"
-      slot.is_available -> "text-green-600 bg-green-100"
-      true -> "text-gray-600 bg-gray-100"
+  defp format_time_range(start_time, end_time) do
+    start_time_str = Calendar.strftime(start_time, "%H:%M")
+    end_time_str = Calendar.strftime(end_time, "%H:%M")
+    "#{start_time_str} - #{end_time_str}"
+  end
+
+  defp parse_datetime(datetime_string) do
+    case NaiveDateTime.from_iso8601(datetime_string <> ":00") do
+      {:ok, datetime} ->
+        datetime
+
+      {:error, _} ->
+        # Fallback to current time if parsing fails
+        NaiveDateTime.utc_now()
     end
+  end
+
+  defp format_errors(changeset) do
+    changeset.errors
+    |> Enum.map(fn {field, {message, _}} -> "#{field} #{message}" end)
+    |> Enum.join(", ")
   end
 end
